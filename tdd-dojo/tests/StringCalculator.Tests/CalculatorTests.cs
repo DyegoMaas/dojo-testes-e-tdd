@@ -7,7 +7,7 @@ namespace StringCalculator.Tests;
 public class CalculatorTests
 {
     // ===========================================================
-    //  PRIMEIRO TESTE VERMELHO — já escrito para destravar o time.
+    //  PRIMEIRO TESTE VERMELHO — já escrito para destravar.
     //  Rode `dotnet test`: ele falha porque Add lança NotImplemented.
     //  Faça-o passar com o MÍNIMO de código possível. Depois,
     //  abra o KATAS.md e revele o próximo requisito.

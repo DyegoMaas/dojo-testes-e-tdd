@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dojo de TDD — MHTEC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a10;
+    --bg-soft: #11111a;
+    --panel: #15151f;
+    --line: #26263a;
+    --text: #ece9e2;
+    --muted: #8f8da0;
+    --red: #ff3b5c;
+    --green: #34e58c;
+    --cyan: #4cc9f0;
+    --amber: #ffb454;
+    --font-display: "Bricolage Grotesque", "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--red); color: #fff; }
+
+  /* grain + glow atmosphere */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(255,59,92,.07), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 90% 110%, rgba(76,201,240,.06), transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  a { color: var(--cyan); }
+  code, pre, .mono { font-family: var(--font-mono); }
+  pre { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  pre::-webkit-scrollbar { height: 8px; width: 8px; }
+  pre::-webkit-scrollbar-track { background: transparent; }
+  pre::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+
+  /* ============ top progress bar ============ */
+  #scrollbar {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--red), var(--green), var(--cyan));
+    z-index: 100; transition: width .1s linear;
+  }
+
+  /* ============ dot nav ============ */
+  #dotnav {
+    position: fixed; right: 22px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 14px; z-index: 90;
+  }
+  #dotnav a {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--line); display: block; position: relative;
+    transition: background .3s, transform .3s;
+  }
+  #dotnav a:hover { transform: scale(1.5); }
+  #dotnav a.active { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  #dotnav a span {
+    position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); white-space: nowrap; opacity: 0;
+    transition: opacity .2s; pointer-events: none;
+  }
+  #dotnav a:hover span { opacity: 1; }
+  @media (max-width: 800px) { #dotnav { display: none; } }
+
+  /* ============ reveal-on-scroll ============ */
+  [data-reveal] {
+    opacity: 0; transform: translateY(36px);
+    transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1);
+    transition-delay: var(--d, 0s);
+  }
+  [data-reveal].in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] { transition: none; opacity: 1; transform: none; }
+    html { scroll-behavior: auto; }
+    .scroll-cue, .steps-anim span, .kanji-spin { animation: none !important; }
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: .35em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .eyebrow::before { content: ""; width: 42px; height: 1px; background: var(--red); }
+
+  h2.section-title {
+    font-size: clamp(38px, 6vw, 72px); font-weight: 800; line-height: 1.02;
+    letter-spacing: -.02em; margin: 18px 0 16px;
+  }
+  .section-sub { color: var(--muted); font-size: 18px; max-width: 640px; }
+
+  /* ============ HERO ============ */
+  #hero {
+    min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; position: relative; overflow: hidden;
+  }
+  #hero .kanji-bg {
+    position: absolute; right: -4%; top: 50%; transform: translateY(-50%);
+    font-size: min(58vh, 560px); font-weight: 800; line-height: 1;
+    color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.07);
+    user-select: none; pointer-events: none;
+  }
+  #hero h1 {
+    font-size: clamp(56px, 11vw, 150px); font-weight: 800;
+    line-height: .94; letter-spacing: -.03em;
+  }
+  #hero h1 .red { color: var(--red); }
+  #hero h1 .green { color: var(--green); }
+  #hero h1 .cyan { color: var(--cyan); }
+  #hero .tagline {
+    margin-top: 28px; font-size: clamp(17px, 2vw, 22px); color: var(--muted); max-width: 560px;
+  }
+  #hero .tagline strong { color: var(--text); font-weight: 600; }
+  .hero-meta {
+    display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap;
+  }
+  .chip {
+    font-family: var(--font-mono); font-size: 13px; padding: 8px 16px;
+    border: 1px solid var(--line); border-radius: 999px; color: var(--muted);
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+  .scroll-cue {
+    position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--muted);
+    animation: cue 2.2s ease-in-out infinite;
+  }
+  @keyframes cue {
+    0%, 100% { transform: translate(-50%, 0); opacity: .5; }
+    50% { transform: translate(-50%, 10px); opacity: 1; }
+  }
+
+  /* ============ CYCLE (scrollytelling slides) ============ */
+  #ciclo { height: 520vh; position: relative; }
+  .cycle-sticky {
+    position: sticky; top: 0; height: 100vh; overflow: hidden;
+    display: flex; align-items: center;
+  }
+  .cycle-grid {
+    display: grid; grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: clamp(32px, 6vw, 90px); align-items: center; width: 100%;
+  }
+  @media (max-width: 880px) {
+    .cycle-grid { grid-template-columns: 1fr; gap: 24px; }
+    .cycle-ring { max-width: 240px; margin: 0 auto; }
+  }
+
+  .cycle-ring { position: relative; width: 100%; aspect-ratio: 1; }
+  .cycle-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .cycle-ring .arc {
+    fill: none; stroke-width: 10; stroke-linecap: round;
+    opacity: .18; transition: opacity .5s, stroke-width .5s;
+  }
+  .cycle-ring .arc.lit { opacity: 1; stroke-width: 14; }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .ring-center .glyph { font-size: clamp(56px, 9vw, 110px); font-weight: 800; line-height: 1; transition: color .5s; }
+  .ring-center .lbl {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .35em;
+    text-transform: uppercase; color: var(--muted); margin-top: 10px;
+  }
+  .kanji-spin { animation: spin 40s linear infinite; transform-origin: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .cycle-slides { display: grid; }
+  .cycle-slide {
+    grid-area: 1 / 1;
+    opacity: 0; transform: translateY(44px); pointer-events: none;
+    transition: opacity .55s cubic-bezier(.2,.7,.2,1), transform .55s cubic-bezier(.2,.7,.2,1);
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .cycle-slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  .cycle-slide .step-no {
+    font-family: var(--font-mono); font-size: 14px; letter-spacing: .35em; color: var(--muted);
+  }
+  .cycle-slide h3 {
+    font-size: clamp(52px, 8.5vw, 120px); font-weight: 800; line-height: .95;
+    letter-spacing: -.03em; margin: 10px 0 18px;
+  }
+  .cycle-slide .rule {
+    font-size: clamp(18px, 2.2vw, 26px); max-width: 560px; color: var(--text);
+  }
+  .cycle-slide .rule em { color: var(--muted); font-style: normal; }
+  .cycle-slide pre {
+    margin-top: 26px; background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: clamp(12px, 1.4vw, 15px); line-height: 1.7;
+    overflow-x: auto; max-width: 640px;
+  }
+  .c-red h3, .c-red .step-no { color: var(--red); }
+  .c-green h3, .c-green .step-no { color: var(--green); }
+  .c-cyan h3, .c-cyan .step-no { color: var(--cyan); }
+  .c-red pre { border-left-color: var(--red); }
+  .c-green pre { border-left-color: var(--green); }
+  .c-cyan pre { border-left-color: var(--cyan); }
+  pre .cm { color: var(--muted); }
+  pre .kw { color: var(--cyan); }
+  pre .str { color: var(--amber); }
+  pre .ok { color: var(--green); }
+  pre .bad { color: var(--red); }
+
+  .cycle-hint {
+    position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--muted); opacity: .7;
+  }
+
+  /* ============ RULES ============ */
+  section.block { padding: 130px 0; }
+  .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 54px; }
+  @media (max-width: 800px) { .rules-grid { grid-template-columns: 1fr; } }
+  .rule-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 34px 32px; position: relative; overflow: hidden;
+  }
+  .rule-card .num {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: .3em;
+    color: var(--muted);
+  }
+  .rule-card h3 { font-size: 26px; font-weight: 700; margin: 12px 0 10px; letter-spacing: -.01em; }
+  .rule-card p { color: var(--muted); font-size: 16px; }
+  .rule-card p strong { color: var(--text); }
+
+  .rule-card.baby {
+    grid-column: 1 / -1; border-color: rgba(255,180,84,.45);
+    background: linear-gradient(135deg, rgba(255,180,84,.08), var(--panel) 55%);
+    padding: 44px 40px;
+  }
+  .rule-card.baby h3 { font-size: clamp(30px, 4vw, 44px); color: var(--amber); }
+  .amber-emoji {
+    display: inline-block;
+    filter: grayscale(1) sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.2);
+  }
+  .rule-card.baby .badge-new {
+    position: absolute; top: 24px; right: 24px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--bg); background: var(--amber);
+    padding: 5px 12px; border-radius: 999px; font-weight: 700;
+  }
+  .rule-card.baby p { font-size: 18px; max-width: 720px; }
+  .steps-anim {
+    display: flex; gap: clamp(8px, 2vw, 18px); margin: 30px 0 8px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .steps-anim span {
+    font-family: var(--font-mono); font-size: 13px; padding: 10px 14px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft);
+    opacity: 0; transform: translateY(14px);
+    animation: stepin .5s cubic-bezier(.2,.7,.2,1) forwards;
+    animation-play-state: paused;
+  }
+  .rule-card.baby.in .steps-anim span { animation-play-state: running; }
+  .steps-anim span:nth-child(1) { animation-delay: .2s; border-color: var(--red); color: var(--red); }
+  .steps-anim span:nth-child(2) { animation-delay: .7s; border-color: var(--green); color: var(--green); }
+  .steps-anim span:nth-child(3) { animation-delay: 1.2s; border-color: var(--red); color: var(--red); }
+  .steps-anim span:nth-child(4) { animation-delay: 1.7s; border-color: var(--green); color: var(--green); }
+  .steps-anim span:nth-child(5) { animation-delay: 2.2s; border-color: var(--cyan); color: var(--cyan); }
+  @keyframes stepin { to { opacity: 1; transform: none; } }
+  .baby-quote {
+    margin-top: 22px; padding-left: 18px; border-left: 3px solid var(--amber);
+    color: var(--text); font-size: 17px; font-style: italic;
+  }
+
+  /* ============ AGENDA ============ */
+  .timeline { margin-top: 60px; position: relative; }
+  .timeline::before {
+    content: ""; position: absolute; left: 95px; top: 8px; bottom: 8px;
+    width: 1px; background: var(--line);
+  }
+  @media (max-width: 640px) { .timeline::before { left: 70px; } }
+  .t-item {
+    display: grid; grid-template-columns: 70px 50px 1fr; gap: 0 22px;
+    padding: 22px 0; align-items: start;
+  }
+  @media (max-width: 640px) { .t-item { grid-template-columns: 48px 44px 1fr; } }
+  .t-time { font-family: var(--font-mono); font-size: 14px; color: var(--muted); padding-top: 6px; text-align: right; }
+  .t-dot {
+    width: 13px; height: 13px; border-radius: 50%; background: var(--bg);
+    border: 2px solid var(--accent, var(--muted)); margin: 9px auto 0; position: relative; z-index: 1;
+    box-shadow: 0 0 0 4px var(--bg);
+  }
+  .t-body h3 { font-size: 22px; font-weight: 700; }
+  .t-body h3 .t-dur { font-family: var(--font-mono); font-size: 13px; color: var(--accent, var(--muted)); font-weight: 400; margin-left: 12px; }
+  .t-body p { color: var(--muted); font-size: 15px; margin-top: 4px; max-width: 620px; }
+  .t-body p code { font-size: 13px; color: var(--text); background: var(--bg-soft); padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line); }
+
+  /* ============ COMMANDS ============ */
+  .terminal {
+    margin-top: 54px; background: #0d0d14; border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.8);
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 8px; padding: 13px 18px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .term-bar i { width: 12px; height: 12px; border-radius: 50%; }
+  .term-bar i:nth-child(1) { background: #ff5f57; }
+  .term-bar i:nth-child(2) { background: #febc2e; }
+  .term-bar i:nth-child(3) { background: #28c840; }
+  .term-bar span { margin-left: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .term-body { padding: 12px 8px; }
+  .cmd-row {
+    display: flex; align-items: baseline; gap: 14px; padding: 12px 16px;
+    border-radius: 8px; transition: background .2s; flex-wrap: wrap;
+  }
+  .cmd-row:hover { background: rgba(255,255,255,.03); }
+  .cmd-row .prompt { color: var(--green); font-family: var(--font-mono); font-size: 15px; }
+  .cmd-row code.cmd { font-size: 15px; color: var(--text); flex: 1; min-width: 200px; }
+  .cmd-row .desc { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+  .copy-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 11px; cursor: pointer; transition: all .2s;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+  .copy-btn.ok { color: var(--green); border-color: var(--green); }
+  .cmd-note {
+    margin-top: 22px; font-family: var(--font-mono); font-size: 13.5px; color: var(--muted);
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  .cmd-note b { color: var(--red); }
+
+  /* ============ KATAS ============ */
+  .kata-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px 26px; margin-top: 18px; }
+  .kata-head h2 { font-size: clamp(36px, 5.5vw, 64px); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+  .kata-files {
+    margin-top: 26px; display: flex; flex-direction: column; gap: 8px;
+    font-family: var(--font-mono); font-size: 13.5px; color: var(--muted);
+  }
+  .kata-files code { color: var(--text); background: var(--bg-soft); border: 1px solid var(--line); padding: 3px 9px; border-radius: 6px; }
+
+  .progress-wrap {
+    margin: 40px 0 26px; display: flex; align-items: center; gap: 18px;
+  }
+  .progress-track {
+    flex: 1; height: 8px; border-radius: 99px; background: var(--bg-soft);
+    border: 1px solid var(--line); overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--red), var(--green));
+    transition: width .6s cubic-bezier(.2,.7,.2,1);
+  }
+  .progress-label { font-family: var(--font-mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .progress-label b { color: var(--green); }
+  .reset-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 8px; padding: 6px 13px; cursor: pointer; transition: all .2s;
+  }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+  .req-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .req {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 24px; display: grid; grid-template-columns: auto 1fr; gap: 18px;
+    transition: border-color .3s, opacity .3s;
+  }
+  .req.done { border-color: rgba(52,229,140,.4); }
+  .req.done .req-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--green); text-decoration-thickness: 2px; }
+
+  .req-check { display: flex; align-items: flex-start; padding-top: 2px; cursor: pointer; }
+  .req-check input { position: absolute; opacity: 0; pointer-events: none; }
+  .req-check .box {
+    width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .25s cubic-bezier(.2,.7,.2,1); background: var(--bg-soft);
+  }
+  .req-check .box svg { width: 15px; height: 15px; stroke: var(--bg); stroke-width: 3.2; fill: none; stroke-dasharray: 22; stroke-dashoffset: 22; transition: stroke-dashoffset .3s .05s; }
+  .req-check input:checked + .box { background: var(--green); border-color: var(--green); box-shadow: 0 0 16px rgba(52,229,140,.4); }
+  .req-check input:checked + .box svg { stroke-dashoffset: 0; }
+  .req-check input:focus-visible + .box { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  .req-main { min-width: 0; }
+  .req-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .req-title { font-size: 18px; font-weight: 700; transition: color .3s; }
+  .req-badge {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid var(--cyan); color: var(--cyan);
+  }
+  .req-badge.extra { border-color: var(--amber); color: var(--amber); }
+  .spoil-btn {
+    margin-left: auto; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; background: transparent; border: 1px solid var(--line);
+    color: var(--muted); border-radius: 7px; padding: 5px 12px; cursor: pointer; transition: all .2s;
+  }
+  .spoil-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  .req-content { margin-top: 12px; position: relative; }
+  .req-content .inner { color: var(--muted); font-size: 15.5px; transition: filter .4s, opacity .4s; }
+  .req-content .inner strong { color: var(--text); }
+  .req-content .inner code {
+    font-size: 13px; color: var(--amber); background: var(--bg-soft);
+    border: 1px solid var(--line); padding: 2px 7px; border-radius: 6px;
+  }
+  .req-content .inner pre {
+    margin-top: 12px; background: var(--bg-soft); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; line-height: 1.7; overflow-x: auto;
+  }
+  .req-content .inner pre code { background: none; border: none; padding: 0; color: var(--text); }
+  .req.spoiled .inner { filter: blur(9px); opacity: .55; user-select: none; pointer-events: none; }
+  .req-content .veil {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; cursor: pointer;
+  }
+  .req.spoiled .veil { display: flex; }
+  .req-content .veil span {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--text); background: rgba(10,10,16,.7); border: 1px solid var(--line);
+    padding: 9px 18px; border-radius: 999px; backdrop-filter: blur(2px);
+  }
+
+  .kata-tip {
+    margin-top: 36px; border: 1px solid var(--line); border-left: 3px solid var(--cyan);
+    border-radius: 12px; padding: 22px 26px; background: var(--bg-soft);
+    color: var(--muted); font-size: 15.5px;
+  }
+  .kata-tip strong { color: var(--text); }
+
+  .kata-sep { display: flex; align-items: center; gap: 20px; padding: 0; }
+  .kata-sep::before, .kata-sep::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .kata-sep span { font-size: 28px; }
+
+  /* ============ FOOTER ============ */
+  footer {
+    padding: 110px 0 80px; text-align: center; position: relative; z-index: 1;
+  }
+  footer .big {
+    font-family: var(--font-display); text-transform: none;
+    font-size: clamp(40px, 7vw, 90px); font-weight: 800; letter-spacing: -.02em; line-height: 1;
+  }
+  footer .big .green { color: var(--green); }
+  footer p { color: var(--muted); margin-top: 18px; font-family: var(--font-mono); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div id="scrollbar"></div>
+
+<nav id="dotnav" aria-label="Navegação de seções">
+  <a href="#hero"><span>Início</span></a>
+  <a href="#ciclo"><span>O Ciclo</span></a>
+  <a href="#regras"><span>Regras de Ouro</span></a>
+  <a href="#agenda"><span>Agenda</span></a>
+  <a href="#comandos"><span>Comandos</span></a>
+  <a href="#kata1"><span>Kata 1</span></a>
+  <a href="#kata2"><span>Kata 2</span></a>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header id="hero">
+  <div class="kanji-bg" aria-hidden="true">型</div>
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>MHTEC · Sessão 1 · Fundamentos</p>
+    <h1 data-reveal style="--d:.1s">DOJO<br>DE <span class="red">T</span><span class="green">D</span><span class="cyan">D</span></h1>
+    <p class="tagline" data-reveal style="--d:.2s">
+      Três horas de prática deliberada. <strong>Um teste de cada vez, um requisito de cada vez.</strong>
+      O código de produção só existe porque um teste vermelho pediu por ele.
+    </p>
+    <div class="hero-meta" data-reveal style="--d:.3s">
+      <span class="chip"><b>C#</b> · xUnit · Shouldly</span>
+      <span class="chip"><b>2 katas</b> · randori + ping-pong</span>
+      <span class="chip"><b>≈ 3h</b> com pausa pro ☕</span>
+    </div>
+  </div>
+  <div class="scroll-cue">scroll ↓</div>
+</header>
+
+<!-- ================= CYCLE SLIDES ================= -->
+<section id="ciclo" aria-label="O ciclo do TDD">
+  <div class="cycle-sticky">
+    <div class="wrap cycle-grid">
+
+      <div class="cycle-ring" aria-hidden="true">
+        <svg viewBox="0 0 200 200">
+          <!-- circumference 2πr ≈ 553.9 ; cada arco = 1/3 com folga -->
+          <circle class="arc arc-red"   cx="100" cy="100" r="88" stroke="var(--red)"
+                  stroke-dasharray="164.6 389.3" stroke-dashoffset="0"/>
+          <circle class="arc arc-green" cx="100" cy="100" r="88" stroke="var(--green)"
+                  stroke-dasharray="164.6 389.3" stroke-dashoffset="-184.6"/>
+          <circle class="arc arc-cyan"  cx="100" cy="100" r="88" stroke="var(--cyan)"
+                  stroke-dasharray="164.6 389.3" stroke-dashoffset="-369.3"/>
+        </svg>
+        <div class="ring-center">
+          <div class="glyph" id="ring-glyph">∞</div>
+          <div class="lbl" id="ring-label">o ciclo</div>
+        </div>
+      </div>
+
+      <div class="cycle-slides">
+
+        <div class="cycle-slide active" data-slide="0">
+          <p class="step-no" style="color:var(--muted)">O CICLO · COLE ISTO NA PAREDE</p>
+          <h3>RED.<br>GREEN.<br>REFACTOR.</h3>
+          <p class="rule">Tudo no dojo de hoje acontece dentro deste loop.
+            <em>Continue rolando para ver cada passo.</em></p>
+        </div>
+
+        <div class="cycle-slide c-red" data-slide="1">
+          <p class="step-no">PASSO 01 / 03</p>
+          <h3>🔴 RED</h3>
+          <p class="rule">Escreva <strong>UM</strong> teste que falha. <em>Só um. Rode e veja-o falhar — falhar pelo motivo certo.</em></p>
+          <pre><code><span class="kw">[Fact]</span>
+<span class="kw">public void</span> Add_DoisNumeros_RetornaSoma()
+{
+    calculator.Add(<span class="str">"1,2"</span>).ShouldBe(3);
+}
+<span class="cm">// dotnet test →</span> <span class="bad">FAILED ✗</span>
+<span class="cm">// perfeito: é exatamente isso que queremos</span></code></pre>
+        </div>
+
+        <div class="cycle-slide c-green" data-slide="2">
+          <p class="step-no">PASSO 02 / 03</p>
+          <h3>🟢 GREEN</h3>
+          <p class="rule">Faça passar com o <strong>MÍNIMO</strong> de código. <em>Pode ser feio. Pode ser hardcoded. Sério.</em></p>
+          <pre><code><span class="kw">public int</span> Add(<span class="kw">string</span> numbers)
+{
+    <span class="kw">return</span> 3; <span class="cm">// hardcode é PERMITIDO aqui 😈</span>
+}
+<span class="cm">// dotnet test →</span> <span class="ok">PASSED ✓</span>
+<span class="cm">// o próximo teste vai forçar a generalização</span></code></pre>
+        </div>
+
+        <div class="cycle-slide c-cyan" data-slide="3">
+          <p class="step-no">PASSO 03 / 03</p>
+          <h3>♻️ REFACTOR</h3>
+          <p class="rule">Limpe o código <strong>com os testes verdes te protegendo</strong>. <em>Nomes, duplicação, intenção. Rode os testes de novo.</em></p>
+          <pre><code><span class="kw">public int</span> Add(<span class="kw">string</span> numbers) =&gt;
+    numbers.Split(<span class="str">','</span>).Sum(<span class="kw">int</span>.Parse);
+
+<span class="cm">// dotnet test →</span> <span class="ok">PASSED ✓</span>
+<span class="cm">// continua verde? então o refactor é seguro</span></code></pre>
+        </div>
+
+        <div class="cycle-slide" data-slide="4">
+          <p class="step-no" style="color:var(--muted)">E ENTÃO…</p>
+          <h3><span style="color:var(--red)">de novo.</span><br><span style="color:var(--green)">de novo.</span><br><span style="color:var(--cyan)">de novo.</span></h3>
+          <p class="rule">Cada volta no ciclo dura <strong>minutos</strong>. Dezenas de voltas por hora.
+            <em>Se você está há 10 minutos sem rodar os testes, o passo ficou grande demais.</em></p>
+        </div>
+
+      </div>
+    </div>
+    <div class="cycle-hint">role para avançar os passos</div>
+  </div>
+</section>
+
+<!-- ================= RULES ================= -->
+<section id="regras" class="block">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Para iniciantes — e para sempre</p>
+    <h2 class="section-title" data-reveal style="--d:.05s">As 3 Regras<br>de Ouro</h2>
+
+    <div class="rules-grid">
+      <div class="rule-card" data-reveal>
+        <p class="num">REGRA 01</p>
+        <h3>Nenhuma linha sem teste vermelho</h3>
+        <p>Nenhuma linha de produção sem um teste vermelho pedindo por ela.
+          Se você se pegou escrevendo código <strong>"que vai precisar"</strong> — apague.</p>
+      </div>
+
+      <div class="rule-card" data-reveal style="--d:.1s">
+        <p class="num">REGRA 03</p>
+        <h3>Um teste por vez</h3>
+        <p>Nada de escrever cinco testes e sair implementando.
+          <strong>Um</strong> vermelho, <strong>um</strong> verde, respira, repete.</p>
+      </div>
+
+      <div class="rule-card baby" data-reveal style="--d:.15s">
+        <span class="badge-new">★ conceito novo</span>
+        <p class="num" style="color:var(--amber)">REGRA 02</p>
+        <h3><span class="amber-emoji">👣</span> Baby Steps — passos de bebê</h3>
+        <p>O menor passo que te leva de volta ao verde. Hardcode é permitido — <strong>e até incentivado</strong> — no GREEN.
+          A generalização vem do <strong>próximo teste</strong>, e jamais da sua imaginação.
+          Você não escreve o algoritmo: você deixa os testes <strong>arrancarem o algoritmo de você</strong>, um caso por vez.</p>
+        <div class="steps-anim" aria-hidden="true">
+          <span>🔴 Add("") → 0</span>
+          <span>🟢 return 0;</span>
+          <span>🔴 Add("1") → 1</span>
+          <span>🟢 if vazio 0, senão Parse</span>
+          <span>♻️ agora sim, generaliza</span>
+        </div>
+        <p class="baby-quote">"Mas isso é burrice, eu já sei a solução!" — Saber a solução não é o ponto.
+          O ponto é treinar o músculo de avançar em passos tão pequenos que <strong>você nunca fica perdido</strong>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AGENDA ================= -->
+<section id="agenda" class="block" style="background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>≈ 3 horas · 2 katas, se der tempo</p>
+    <h2 class="section-title" data-reveal style="--d:.05s">A Agenda</h2>
+    <p class="section-sub" data-reveal style="--d:.1s">Fechar só o Kata 1 com o ciclo dominado já é um dojo completo e vitorioso. O Kata 2 é o bônus.</p>
+
+    <div class="timeline">
+      <div class="t-item" data-reveal style="--accent: var(--text)">
+        <div class="t-time">00:00</div><div class="t-dot"></div>
+        <div class="t-body">
+          <h3>Abertura: o ciclo + as 3 regras <span class="t-dur">15 min</span></h3>
+          <p>Explicação + 1 demo ao vivo do ciclo RED → GREEN → REFACTOR.</p>
+        </div>
+      </div>
+      <div class="t-item" data-reveal style="--accent: var(--red)">
+        <div class="t-time">00:15</div><div class="t-dot"></div>
+        <div class="t-body">
+          <h3>🥋 Kata 1 — String Calculator <span class="t-dur">60 min</span></h3>
+          <p><strong>Randori:</strong> 1 teclado para o grupo, troca de piloto a cada 🟢. Todo mundo passa pelo teclado.</p>
+        </div>
+      </div>
+      <div class="t-item" data-reveal style="--accent: var(--amber)">
+        <div class="t-time">01:15</div><div class="t-dot"></div>
+        <div class="t-body">
+          <h3>Pausa ☕ <span class="t-dur">10 min</span></h3>
+        </div>
+      </div>
+      <div class="t-item" data-reveal style="--accent: var(--cyan)">
+        <div class="t-time">01:25</div><div class="t-dot"></div>
+        <div class="t-body">
+          <h3>🥋 Kata 2 — Extrator de JSON <span class="t-dur">60 min</span></h3>
+          <p><strong>Pares ping-pong:</strong> A escreve o 🔴, B faz o 🟢 e escreve o próximo 🔴. Inverte.</p>
+        </div>
+      </div>
+      <div class="t-item" data-reveal style="--accent: var(--green)">
+        <div class="t-time">02:25</div><div class="t-dot"></div>
+        <div class="t-body">
+          <h3>Retrospectiva <span class="t-dur">20 min</span></h3>
+          <p>"O que foi estranho? Onde o teste te ajudou? Quando deu vontade de pular o vermelho?"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COMMANDS ================= -->
+<section id="comandos" class="block">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Cole no seu terminal</p>
+    <h2 class="section-title" data-reveal style="--d:.05s">A Colinha</h2>
+    <p class="section-sub" data-reveal style="--d:.1s">Rodar os testes no terminal é <strong style="color:var(--text)">obrigatório</strong> ao longo de todo o ciclo. É o veredito do RED e do GREEN.</p>
+
+    <div class="terminal" data-reveal style="--d:.15s">
+      <div class="term-bar"><i></i><i></i><i></i><span>tdd-dojo — pwsh</span></div>
+      <div class="term-body mono">
+        <div class="cmd-row">
+          <span class="prompt">$</span>
+          <code class="cmd">dotnet restore</code>
+          <span class="desc"># baixa Shouldly, xUnit, NSubstitute</span>
+          <button class="copy-btn" data-copy="dotnet restore">copiar</button>
+        </div>
+        <div class="cmd-row">
+          <span class="prompt">$</span>
+          <code class="cmd">dotnet test</code>
+          <span class="desc"># roda tudo — começa VERMELHO, como esperado</span>
+          <button class="copy-btn" data-copy="dotnet test">copiar</button>
+        </div>
+        <div class="cmd-row">
+          <span class="prompt">$</span>
+          <code class="cmd">dotnet test --filter "FullyQualifiedName~StringCalculator"</code>
+          <span class="desc"># só o kata 1</span>
+          <button class="copy-btn" data-copy='dotnet test --filter "FullyQualifiedName~StringCalculator"'>copiar</button>
+        </div>
+        <div class="cmd-row">
+          <span class="prompt">$</span>
+          <code class="cmd">dotnet test --filter "FullyQualifiedName~JsonHarness"</code>
+          <span class="desc"># só o kata 2</span>
+          <button class="copy-btn" data-copy='dotnet test --filter "FullyQualifiedName~JsonHarness"'>copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="cmd-note" data-reveal><b>规</b> Ritual do dojo: terminou de escrever o teste? <b>roda</b>. Fez passar? <b>roda</b>. Refatorou? <b>roda</b>.</p>
+  </div>
+</section>
+
+<!-- ================= KATA 1 ================= -->
+<section id="kata1" class="block">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Kata 1 · Randori · 60 min</p>
+    <div class="kata-head" data-reveal style="--d:.05s">
+      <h2>🥋 String Calculator</h2>
+      <span class="chip mono"><b>int</b> Add(<b>string</b> numbers)</span>
+    </div>
+    <div class="kata-files" data-reveal style="--d:.1s">
+      <span>produção → <code>src/StringCalculator/Calculator.cs</code></span>
+      <span>testes &nbsp;&nbsp;→ <code>tests/StringCalculator.Tests/CalculatorTests.cs</code> (o 1º teste já está lá, vermelho)</span>
+    </div>
+
+    <div class="progress-wrap" data-reveal style="--d:.15s">
+      <div class="progress-track"><div class="progress-fill" data-kata-fill="k1"></div></div>
+      <span class="progress-label" data-kata-label="k1"><b>0</b>/8 requisitos</span>
+      <button class="reset-btn" data-kata-reset="k1">resetar</button>
+    </div>
+
+    <p class="section-sub" data-reveal style="margin-bottom: 26px;">Revele <strong style="color:var(--text)">um requisito por vez</strong>. Não espie o próximo antes de fechar o atual — a graça do dojo é o requisito te surpreender.</p>
+
+    <ul class="req-list">
+
+      <li class="req" data-id="k1r1" data-kata="k1" data-no-spoil data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 1">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 1 — string vazia</span>
+            <span class="req-badge">já no repo</span>
+          </div>
+          <div class="req-content"><div class="inner">
+            String vazia retorna <code>0</code>. → <code>Add("")</code> ➜ <code>0</code>. Já implementado como exemplo: use-o para demonstrar o ciclo.
+          </div></div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r2" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 2">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 2</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Um único número retorna ele mesmo. → <code>Add("1")</code> ➜ <code>1</code>, <code>Add("42")</code> ➜ <code>42</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r3" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 3">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 3</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Dois números separados por vírgula são somados. → <code>Add("1,2")</code> ➜ <code>3</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r4" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 4">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 4</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Uma quantidade <strong>qualquer</strong> de números. → <code>Add("1,2,3,4,5")</code> ➜ <code>15</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r5" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 5">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 5</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Quebra de linha também separa números (junto da vírgula). → <code>Add("1\n2,3")</code> ➜ <code>6</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r6" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 6">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 6</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Delimitador customizado no início, no formato <code>//[delim]\n[números]</code>. → <code>Add("//;\n1;2")</code> ➜ <code>3</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r7" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 7">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 7</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Números negativos são proibidos: lance uma exceção cuja mensagem <strong>liste os negativos</strong> encontrados. → <code>Add("1,-2,-5")</code> ➜ lança, mensagem contém <code>-2</code> e <code>-5</code>.
+              <pre><code>var ex = Should.Throw&lt;ArgumentException&gt;(() =&gt; calculator.Add("1,-2,-5"));
+ex.Message.ShouldContain("-2");
+ex.Message.ShouldContain("-5");</code></pre>
+            </div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k1r8" data-kata="k1" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 8">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 8</span>
+            <span class="req-badge extra">extra</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Números maiores que 1000 são ignorados. → <code>Add("2,1001")</code> ➜ <code>2</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="kata-tip" data-reveal>
+      💡 Para um time muito novato, <strong>parar no Requisito 5 ou 6 já é um dojo completo e vitorioso.</strong>
+      Melhor sair com o ciclo dominado do que correr até o 8.
+    </div>
+  </div>
+</section>
+
+<div class="kata-sep wrap" aria-hidden="true"><span>🥋</span></div>
+
+<!-- ================= KATA 2 ================= -->
+<section id="kata2" class="block">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Kata 2 · Ping-pong · 60 min · temática IA</p>
+    <div class="kata-head" data-reveal style="--d:.05s">
+      <h2>🥋 Extrator de JSON</h2>
+      <span class="chip mono"><b>Result&lt;string&gt;</b> Extract(<b>string</b> raw)</span>
+    </div>
+    <div class="kata-files" data-reveal style="--d:.1s">
+      <span>produção → <code>src/JsonHarness/JsonExtractor.cs</code></span>
+      <span>testes &nbsp;&nbsp;→ <code>tests/JsonHarness.Tests/JsonExtractorTests.cs</code> (1º teste já vermelho)</span>
+      <span>apoio &nbsp;&nbsp;&nbsp;→ <code>src/JsonHarness/Result.cs</code> (pronto, não precisa mexer)</span>
+    </div>
+
+    <div class="progress-wrap" data-reveal style="--d:.15s">
+      <div class="progress-track"><div class="progress-fill" data-kata-fill="k2"></div></div>
+      <span class="progress-label" data-kata-label="k2"><b>0</b>/6 requisitos</span>
+      <button class="reset-btn" data-kata-reset="k2">resetar</button>
+    </div>
+
+    <p class="section-sub" data-reveal style="margin-bottom: 26px;">A entrada é o texto cru que um LLM devolve; a saída é o JSON válido isolado, ou uma falha graciosa.
+      <strong style="color:var(--text)">É função pura</strong> — sem rede, sem LLM, sem NSubstitute. Cada teste é um jeito diferente de um modelo baratinho se comportar mal.</p>
+
+    <ul class="req-list">
+
+      <li class="req" data-id="k2r1" data-kata="k2" data-no-spoil data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 1">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 1 — JSON limpo</span>
+            <span class="req-badge">já no repo</span>
+          </div>
+          <div class="req-content"><div class="inner">
+            JSON limpo entra → sucesso com o mesmo conteúdo. → <code>Extract("{\"nome\":\"Ada\"}")</code> ➜ <code>Success("{\"nome\":\"Ada\"}")</code>
+          </div></div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k2r2" data-kata="k2" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 2">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 2</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">O modelo embrulhou em cerca de markdown. Extraia só o JSON de dentro.
+              <pre><code>```json
+{"nome":"Ada"}
+```</code></pre>
+              ➜ <code>Success("{\"nome\":\"Ada\"}")</code>
+            </div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k2r3" data-kata="k2" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 3">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 3</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">O modelo tagarelou antes e depois. Isole o objeto.
+              → <code>Extract("Claro! Aqui está: {\"nome\":\"Ada\"} 😊")</code> ➜ <code>Success("{\"nome\":\"Ada\"}")</code><br><br>
+              <em>(Dica que o teste vai forçar: localizar o primeiro <code>{</code> e o último <code>}</code> e validar o miolo. Mas só implemente quando o teste pedir.)</em>
+            </div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k2r4" data-kata="k2" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 4">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 4</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">Lixo ou string vazia → falha graciosa, <strong>sem lançar exceção</strong>.
+              → <code>Extract("")</code>, <code>Extract("desculpe, não consegui")</code> ➜ <code>IsFailure == true</code></div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k2r5" data-kata="k2" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 5">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 5</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">JSON truncado/inválido (o modelo cortou no meio) → falha graciosa.
+              → <code>Extract("{\"nome\":\"Ada")</code> ➜ <code>IsFailure == true</code><br><br>
+              <em>(Aqui entra a validação de verdade: <code>JsonDocument.Parse</code> + tratar o <code>JsonException</code>. Isso separa "achei chaves" de "é JSON válido".)</em>
+            </div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+
+      <li class="req" data-id="k2r6" data-kata="k2" data-reveal>
+        <label class="req-check"><input type="checkbox" aria-label="Concluir requisito 6">
+          <span class="box"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span></label>
+        <div class="req-main">
+          <div class="req-top">
+            <span class="req-title">Requisito 6</span>
+            <span class="req-badge extra">extra</span>
+            <button class="spoil-btn">revelar</button>
+          </div>
+          <div class="req-content">
+            <div class="inner">O payload é um array no topo, e nada de objeto. → <code>Extract("[1,2,3]")</code> ➜ <code>Success("[1,2,3]")</code>.
+              Force a generalização de "procurar <code>{...}</code>" para "procurar o primeiro valor JSON válido".</div>
+            <div class="veil" role="button" tabindex="0" aria-label="Revelar requisito"><span>🔒 revelar requisito</span></div>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="kata-tip" data-reveal>
+      🌉 <strong>Ponte para a Sessão 2:</strong> quando o grupo perceber que <code>Extract</code> é fácil de testar
+      <strong>porque não fala com o LLM</strong>, você tem o gancho perfeito. Na próxima sessão, o passo que chama o modelo
+      (lento, caro, não-determinístico) é escondido atrás de uma interface e mockado com NSubstitute.
+      Aí DI e mock deixam de ser cerimônia e viram alívio.
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <p class="big" data-reveal>Bom <span class="green">dojo</span>. 🚀</p>
+    <p data-reveal style="--d:.1s">red · green · refactor · repeat</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- localStorage state ---------- */
+  var STORE = "mhtec-tdd-dojo-v1";
+  var state;
+  try { state = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { state = {}; }
+  state.done = state.done || {};
+  state.open = state.open || {};
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* modo privado: segue sem persistir */ }
+  }
+
+  /* ---------- requisitos: checkboxes + spoilers ---------- */
+  var reqs = Array.prototype.slice.call(document.querySelectorAll(".req"));
+
+  function refreshKata(kata) {
+    var items = reqs.filter(function (r) { return r.dataset.kata === kata; });
+    var done = items.filter(function (r) { return r.classList.contains("done"); }).length;
+    var fill = document.querySelector('[data-kata-fill="' + kata + '"]');
+    var label = document.querySelector('[data-kata-label="' + kata + '"]');
+    if (fill) fill.style.width = (items.length ? (done / items.length) * 100 : 0) + "%";
+    if (label) label.innerHTML = "<b>" + done + "</b>/" + items.length + " requisitos" + (done === items.length ? " 🎉" : "");
+  }
+
+  reqs.forEach(function (req) {
+    var id = req.dataset.id;
+    var cb = req.querySelector('input[type="checkbox"]');
+    var spoilable = !req.hasAttribute("data-no-spoil");
+
+    if (spoilable && !state.open[id]) req.classList.add("spoiled");
+
+    if (state.done[id]) {
+      cb.checked = true;
+      req.classList.add("done");
+    }
+
+    cb.addEventListener("change", function () {
+      req.classList.toggle("done", cb.checked);
+      if (cb.checked) { state.done[id] = true; } else { delete state.done[id]; }
+      if (cb.checked && spoilable && req.classList.contains("spoiled")) reveal();
+      save();
+      refreshKata(req.dataset.kata);
+    });
+
+    function reveal() {
+      req.classList.remove("spoiled");
+      state.open[id] = true;
+      var btn = req.querySelector(".spoil-btn");
+      if (btn) btn.textContent = "esconder";
+      save();
+    }
+    function hide() {
+      req.classList.add("spoiled");
+      delete state.open[id];
+      var btn = req.querySelector(".spoil-btn");
+      if (btn) btn.textContent = "revelar";
+      save();
+    }
+
+    if (spoilable) {
+      var btn = req.querySelector(".spoil-btn");
+      var veil = req.querySelector(".veil");
+      if (state.open[id] && btn) btn.textContent = "esconder";
+      if (btn) btn.addEventListener("click", function () {
+        req.classList.contains("spoiled") ? reveal() : hide();
+      });
+      if (veil) {
+        veil.addEventListener("click", reveal);
+        veil.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reveal(); }
+        });
+      }
+    }
+  });
+
+  refreshKata("k1");
+  refreshKata("k2");
+
+  document.querySelectorAll("[data-kata-reset]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var kata = btn.dataset.kataReset;
+      if (!confirm("Resetar o progresso do " + (kata === "k1" ? "Kata 1" : "Kata 2") + "?")) return;
+      reqs.filter(function (r) { return r.dataset.kata === kata; }).forEach(function (req) {
+        var id = req.dataset.id;
+        delete state.done[id];
+        delete state.open[id];
+        req.classList.remove("done");
+        req.querySelector('input[type="checkbox"]').checked = false;
+        if (!req.hasAttribute("data-no-spoil")) {
+          req.classList.add("spoiled");
+          var b = req.querySelector(".spoil-btn");
+          if (b) b.textContent = "revelar";
+        }
+      });
+      save();
+      refreshKata(kata);
+    });
+  });
+
+  /* ---------- copiar comandos ---------- */
+  document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var done = function () {
+        btn.textContent = "copiado ✓";
+        btn.classList.add("ok");
+        setTimeout(function () { btn.textContent = "copiar"; btn.classList.remove("ok"); }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(btn.dataset.copy).then(done);
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = btn.dataset.copy;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---------- reveal on scroll ---------- */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll("[data-reveal]").forEach(function (el) { io.observe(el); });
+
+  /* ---------- ciclo: scrollytelling ---------- */
+  var cycleSection = document.getElementById("ciclo");
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".cycle-slide"));
+  var arcs = {
+    red: document.querySelector(".arc-red"),
+    green: document.querySelector(".arc-green"),
+    cyan: document.querySelector(".arc-cyan")
+  };
+  var ringGlyph = document.getElementById("ring-glyph");
+  var ringLabel = document.getElementById("ring-label");
+  var ringSvg = document.querySelector(".cycle-ring svg");
+  var slideMeta = [
+    { lit: ["red", "green", "cyan"], glyph: "∞", label: "o ciclo", color: "var(--text)", spin: true },
+    { lit: ["red"], glyph: "🔴", label: "teste que falha", color: "var(--red)", spin: false },
+    { lit: ["green"], glyph: "🟢", label: "mínimo p/ passar", color: "var(--green)", spin: false },
+    { lit: ["cyan"], glyph: "♻️", label: "limpa, protegido", color: "var(--cyan)", spin: false },
+    { lit: ["red", "green", "cyan"], glyph: "∞", label: "repita", color: "var(--text)", spin: true }
+  ];
+  var currentSlide = 0;
+
+  function setSlide(idx) {
+    if (idx === currentSlide) return;
+    currentSlide = idx;
+    slides.forEach(function (s, i) { s.classList.toggle("active", i === idx); });
+    var meta = slideMeta[idx];
+    Object.keys(arcs).forEach(function (k) {
+      arcs[k].classList.toggle("lit", meta.lit.indexOf(k) !== -1);
+    });
+    ringGlyph.textContent = meta.glyph;
+    ringGlyph.style.color = meta.color;
+    ringLabel.textContent = meta.label;
+    ringSvg.classList.toggle("kanji-spin", meta.spin);
+  }
+
+  // estado inicial do anel
+  ["red", "green", "cyan"].forEach(function (k) { arcs[k].classList.add("lit"); });
+  ringSvg.classList.add("kanji-spin");
+
+  var scrollbar = document.getElementById("scrollbar");
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll("#dotnav a"));
+  var sections = navLinks.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+
+  function onScroll() {
+    // barra de progresso global
+    var max = document.documentElement.scrollHeight - innerHeight;
+    scrollbar.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + "%";
+
+    // slides do ciclo
+    var rect = cycleSection.getBoundingClientRect();
+    var total = rect.height - innerHeight;
+    var p = Math.min(1, Math.max(0, -rect.top / total));
+    setSlide(Math.min(slides.length - 1, Math.floor(p * slides.length)));
+
+    // dot nav ativa
+    var active = 0;
+    sections.forEach(function (sec, i) {
+      if (sec && sec.getBoundingClientRect().top <= innerHeight * 0.45) active = i;
+    });
+    navLinks.forEach(function (a, i) { a.classList.toggle("active", i === active); });
+  }
+
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", onScroll);
+  onScroll();
+})();
+</script>
+</body>
+</html>
