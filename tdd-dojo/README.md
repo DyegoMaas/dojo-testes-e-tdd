@@ -8,7 +8,10 @@ com **Shouldly** (asserções) e **NSubstitute** (mocks, para a 2ª sessão).
 - **Kata 2 — Extrator de JSON:** mesma cadência, mas em cima de algo real
   (limpar a saída bagunçada de um LLM). Função pura, **zero mock**.
 
-O guia completo, com os requisitos revelados um a um, está em **[KATAS.md](./KATAS.md)**.
+O guia completo é o roteiro interativo **[roteiro.html](./roteiro.html)** — abra
+no navegador (duplo clique resolve). Ele traz o ciclo RED → GREEN → REFACTOR,
+as 3 regras de ouro, a agenda da sessão, a colinha de comandos e os requisitos
+dos katas revelados um a um, com checklist de progresso salvo no navegador.
 
 ## Começando
 
@@ -20,14 +23,14 @@ dotnet test
 ```
 
 O primeiro teste de cada kata já vem **vermelho** de propósito — é o ponto de
-partida do ciclo. Faça-o passar com o mínimo de código e siga o `KATAS.md`.
+partida do ciclo. Faça-o passar com o mínimo de código e siga o `roteiro.html`.
 
 ## Estrutura
 
 ```
 TddDojo.sln
 ├── Directory.Build.props            # net8.0, nullable, implicit usings
-├── KATAS.md                         # 👈 guia do dojo (comece por aqui)
+├── roteiro.html                     # 👈 roteiro interativo do dojo (comece por aqui)
 ├── src/
 │   ├── StringCalculator/            # Calculator.cs (stub)
 │   └── JsonHarness/                 # JsonExtractor.cs (stub) + Result.cs (pronto)
